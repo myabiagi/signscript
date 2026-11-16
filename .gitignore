@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# SignScript - Downloaded pretrained models
+models/*.task
+
+# SignScript - Downloaded datasets
+data/
+
+# SignScript - Local recordings
+recordings/
