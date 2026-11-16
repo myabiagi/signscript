@@ -50,8 +50,8 @@ def run_webcam(camera_index=0):
                 # Display the processed frame
                 cv2.imshow(WINDOW_NAME, frame)
 
-                # Process keyboard and window events
-                key = cv2.waitKey(1) & 0xFF
+                # Process window events
+                cv2.waitKey(1)
 
                 # Exit when the window is closed
                 if cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1:
