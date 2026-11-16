@@ -79,8 +79,6 @@ Invoke-WebRequest `
     -OutFile "models/hand_landmarker.task"
 ```
 
-The model is saved locally and excluded from Git using `.gitignore`.
-
 ## Usage
 
 With your virtual environment activated, run the application from the repository root:
