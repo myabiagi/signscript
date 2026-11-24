@@ -16,10 +16,13 @@ The project uses Google's MediaPipe Hand Landmarker for hand tracking and OpenCV
 - Visualization of 21 landmarks per detected hand
 - Customizable hand landmark colours
 - Close the application using the window's X button
+- Hand landmark detection for both images and video
+- Normalization of hand landmarks for position, size, and handedness
+- Preparation of labelled ASL alphabet features for model training
 
 ### Planned
 - Recognition of 24 static ASL alphabet letters
-- Recognition of 2 dynamic ASL alphabet letters
+- Recognition of 2 dynamic ASL alphabet letters (J and Z)
 - Recognition of selected common ASL signs
 - Automatic letter and word recognition without manual mode selection
 - English text output
@@ -75,9 +78,43 @@ Download the model:
 
 ```powershell
 Invoke-WebRequest `
-    -Uri "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task" `
+    -Uri "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" `
     -OutFile "models/hand_landmarker.task"
 ```
+
+## Alphabet Dataset
+
+SignScript uses the SignAlphaSet dataset for static ASL alphabet recognition.
+
+Dataset source:
+https://data.mendeley.com/datasets/8fmvr9m98w/3
+
+Download `SignAlphaSet.zip` and extract the images into:
+
+  data/alphabet/signalphaset/
+
+The extracted directory should contain 26 folders, labelled A through Z, with 1,000 JPG images per letter.
+
+The static alphabet classifier uses 24 letters, excluding J and Z, which require motion recognition.
+
+The dataset is not included in this repository and must be downloaded separately.
+
+## Alphabet Feature Preparation
+
+After downloading and extracting SignAlphaSet, run:
+
+```powershell
+python src/prepare_alphabet.py
+```
+
+This script:
+- Randomly samples 200 images per static letter using seed 42
+- Extracts 21 hand landmarks using MediaPipe
+- Normalizes the landmarks into 63 numerical features
+- Records hand detection statistics
+- Saves the processed features to `data/processed/alphabet_features.npz`
+
+The generated features will be used to train and evaluate KNN and Random Forest classifiers.
 
 ## Usage
 
