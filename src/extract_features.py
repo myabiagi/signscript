@@ -108,6 +108,13 @@ def normalize_landmarks(hand_landmarks, handedness):
     Returns:
         numpy.ndarray: Flattened array of 63 normalized coordinates.
     """
+    # Validate the landmarks and handedness
+    if len(hand_landmarks) != 21:
+        raise ValueError("Expected 21 hand landmarks.")
+
+    if handedness not in ("Left", "Right"):
+        raise ValueError(f"Unexpected handedness label: {handedness}")
+
     # Convert the 21 landmarks into a NumPy array
     points = []
 
@@ -120,7 +127,7 @@ def normalize_landmarks(hand_landmarks, handedness):
     wrist = points[0].copy()
     points = points - wrist
 
-    # Mirror left-hand coordinates to match right-hand orientation
+    # Mirror left-labelled hands to a common orientation
     if handedness == "Left":
         points[:, 0] = -points[:, 0]
 
