@@ -16,7 +16,7 @@ The project uses Google's MediaPipe Hand Landmarker for hand tracking and OpenCV
 - Visualization of 21 landmarks per detected hand
 - Customizable hand landmark colours
 - Close the application using the window's X button
-- Hand landmark detection for both images and video
+- Hand landmark detection for images and video
 - Normalization of hand landmarks for position, size, and handedness
 - Preparation of labelled ASL alphabet features for model training
 
@@ -34,33 +34,50 @@ The project uses Google's MediaPipe Hand Landmarker for hand tracking and OpenCV
 - OpenCV
 - Google MediaPipe
 - NumPy
-- scikit-learn (planned for classification)
-- Matplotlib (planned for evaluation)
+- scikit-learn
+- Matplotlib
+- joblib
 
 ## Installation
 
 ### 1. Clone the repository
 
-```powershell
+```bash
 git clone https://github.com/myabiagi/signscript.git
 cd signscript
 ```
 
 ### 2. Create a virtual environment
 
+Windows (PowerShell):
+
 ```powershell
 py -3.11 -m venv .venv
 ```
 
+macOS:
+
+```bash
+python3.11 -m venv .venv
+```
+
 ### 3. Activate the virtual environment
+
+Windows (PowerShell):
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
+macOS:
+
+```bash
+source .venv/bin/activate
+```
+
 ### 4. Install dependencies
 
-```powershell
+```bash
 python -m pip install -r requirements.txt
 ```
 
@@ -68,60 +85,66 @@ python -m pip install -r requirements.txt
 
 The application uses Google's pretrained MediaPipe Hand Landmarker model.
 
-Create the `models` directory:
+The model is not included in the repository and must be downloaded separately.
+
+Windows (PowerShell):
 
 ```powershell
 New-Item -ItemType Directory -Force models
-```
 
-Download the model:
-
-```powershell
 Invoke-WebRequest `
     -Uri "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" `
     -OutFile "models/hand_landmarker.task"
 ```
 
-## Alphabet Dataset
+macOS:
 
-SignScript uses the SignAlphaSet dataset for static ASL alphabet recognition.
+```bash
+mkdir -p models
 
-Dataset source:
-https://data.mendeley.com/datasets/8fmvr9m98w/3
-
-Download `SignAlphaSet.zip` and extract the images into:
-
-  data/alphabet/signalphaset/
-
-The extracted directory should contain 26 folders, labelled A through Z, with 1,000 JPG images per letter.
-
-The static alphabet classifier uses 24 letters, excluding J and Z, which require motion recognition.
-
-The dataset is not included in this repository and must be downloaded separately.
-
-## Alphabet Feature Preparation
-
-After downloading and extracting SignAlphaSet, run:
-
-```powershell
-python src/prepare_alphabet.py
+curl -L \
+    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" \
+    -o models/hand_landmarker.task
 ```
 
-This script:
-- Randomly samples 200 images per static letter using seed 42
-- Extracts 21 hand landmarks using MediaPipe
-- Normalizes the landmarks into 63 numerical features
-- Records hand detection statistics
-- Saves the processed features to `data/processed/alphabet_features.npz`
+The model should be saved to:
 
-The generated features will be used to train and evaluate KNN and Random Forest classifiers.
+    models/hand_landmarker.task
 
 ## Usage
 
-With your virtual environment activated, run the application from the repository root:
+Run all commands from the repository root with the virtual environment activated.
 
-```powershell
-python src/main.py
+### Start SignScript
+
+```bash
+python dev.py start
 ```
 
-The application opens a webcam window and displays detected hand landmarks.
+This launches the webcam application, detects hands, and displays their landmarks.
+
+Close the webcam window using the X button.
+
+## Reproducing the Experiments
+
+To reproduce Experiment 1 (KNN vs. Random Forest):
+
+1. Download SignAlphaSet:
+   https://data.mendeley.com/datasets/8fmvr9m98w/3
+
+2. Extract the images into:
+   `data/alphabet/signalphaset/`
+
+3. Prepare features:
+
+   ```bash
+   python dev.py prepare-alphabet
+   ```
+
+4. Train and evaluate:
+
+   ```bash
+   python dev.py train-alphabet
+   ```
+
+Experiment outputs are saved in `results/alphabet/`.
