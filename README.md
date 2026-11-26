@@ -1,44 +1,35 @@
 # SignScript
 
-Real-time American Sign Language (ASL) fingerspelling and isolated sign recognition using computer vision and machine learning.
+SignScript is a computer vision project for recognizing American Sign Language (ASL) fingerspelling using a webcam, MediaPipe hand landmarks, and machine learning.
 
-## Overview
+The project targets the 26-letter ASL fingerspelling alphabet:
 
-SignScript is a Python-based computer vision application designed to recognize ASL fingerspelling and common isolated signs, converting recognized signs into English text.
+- **24 static letters:** A–Z, excluding J and Z.
+- **2 dynamic letters:** J and Z, which require motion recognition.
 
-The project uses Google's MediaPipe Hand Landmarker for hand tracking and OpenCV for real-time video processing. Machine learning classifiers will be trained to recognize individual letters and selected ASL signs.
+**Current implementation:** The 24 static letters are supported. Dynamic J/Z recognition is under development.
 
 ## Features
 
-### Implemented
-- Real-time webcam capture using OpenCV
-- Hand detection for up to two hands
-- Visualization of 21 landmarks per detected hand
-- Customizable hand landmark colours
-- Close the application using the window's X button
-- Hand landmark detection for images and video
-- Normalization of hand landmarks for position, size, and handedness
-- Preparation of labelled ASL alphabet features for model training
-
-### Planned
-- Recognition of 24 static ASL alphabet letters
-- Recognition of 2 dynamic ASL alphabet letters (J and Z)
-- Recognition of selected common ASL signs
-- Automatic letter and word recognition without manual mode selection
-- English text output
-- Machine learning model comparisons and evaluation
+- Live webcam input through OpenCV
+- MediaPipe detection and visualization of 21 hand landmarks
+- Left- and right-hand normalization
+- 108-dimensional static hand features
+- Random Forest classification of 24 static letters
+- Prediction smoothing using six recent predictions and four matching votes
+- Stable letter display during uncertain transitions
+- Pretrained classifier included; no retraining required to run the application
 
 ## Technologies
 
-- Python 3.11
+- Python
 - OpenCV
-- Google MediaPipe
+- MediaPipe Hand Landmarker
 - NumPy
 - scikit-learn
-- Matplotlib
 - joblib
 
-## Installation
+## Getting Started
 
 ### 1. Clone the repository
 
@@ -49,102 +40,145 @@ cd signscript
 
 ### 2. Create a virtual environment
 
-Windows (PowerShell):
+**Windows PowerShell:**
 
 ```powershell
-py -3.11 -m venv .venv
-```
-
-macOS:
-
-```bash
-python3.11 -m venv .venv
-```
-
-### 3. Activate the virtual environment
-
-Windows (PowerShell):
-
-```powershell
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-macOS:
+**macOS/Linux:**
 
 ```bash
+python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 4. Install dependencies
+### 3. Install dependencies
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-### 5. Download the MediaPipe hand landmark model
+### 4. Download the MediaPipe model
 
-The application uses Google's pretrained MediaPipe Hand Landmarker model.
+SignScript uses MediaPipe's pretrained Hand Landmarker for detecting hands.
 
-The model is not included in the repository and must be downloaded separately.
+The required model must be saved as `models/hand_landmarker.task`.
 
-Windows (PowerShell):
+**Windows PowerShell:**
 
 ```powershell
 New-Item -ItemType Directory -Force models
 
 Invoke-WebRequest `
-    -Uri "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" `
-    -OutFile "models/hand_landmarker.task"
+  -Uri "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" `
+  -OutFile "models/hand_landmarker.task"
 ```
 
-macOS:
+**macOS/Linux:**
 
 ```bash
 mkdir -p models
 
 curl -L \
-    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" \
-    -o models/hand_landmarker.task
+  "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" \
+  -o models/hand_landmarker.task
 ```
 
-The model should be saved to:
+After setup, the models directory should contain:
 
-    models/hand_landmarker.task
+```text
+models/
+├── hand_landmarker.task
+└── static_classifier.joblib
+```
 
-## Usage
+`static_classifier.joblib` is the trained SignScript classifier included in the repository.
 
-Run all commands from the repository root with the virtual environment activated.
-
-### Start SignScript
+## Run SignScript
 
 ```bash
 python dev.py start
 ```
 
-This launches the webcam application, detects hands, and displays their landmarks.
+Show one static ASL handshape to the webcam.
 
-Close the webcam window using the X button.
+The application displays the predicted letter, detected handedness, and hand landmarks.
 
-## Reproducing the Experiments
+To reduce flickering, a letter must receive at least four matching predictions within a six-frame window. Until then, the last stable prediction remains displayed.
 
-To reproduce Experiment 1 (KNN vs. Random Forest):
+Press **Q** or close the webcam window to exit.
 
-1. Download SignAlphaSet:
-   https://data.mendeley.com/datasets/8fmvr9m98w/3
+**The training datasets are not required to run the supplied classifier.**
 
-2. Extract the images into:
-   `data/alphabet/signalphaset/`
+## Reproducing Training (Optional)
 
-3. Prepare features:
+The repository also includes preparation, training, and evaluation scripts.
 
-   ```bash
-   python dev.py prepare-alphabet
-   ```
+Download the two static-letter datasets:
 
-4. Train and evaluate:
+- [ASL-HG — Mendeley Data](https://data.mendeley.com/datasets/j4y5w2c8w9/1)
+- [Pugeault & Bowden — ASL Finger Spelling Dataset A](https://empslocal.ex.ac.uk/people/staff/np331/index.php?section=FingerSpellingDataset)
 
-   ```bash
-   python dev.py train-alphabet
-   ```
+Extract them into:
 
-Experiment outputs are saved in `results/alphabet/`.
+```text
+data/
+└── static/
+    ├── asl_hg/
+    │   ├── A/
+    │   ├── B/
+    │   └── ...
+    └── pugeault_bowden/
+        ├── A/
+        │   ├── a/
+        │   ├── b/
+        │   └── ...
+        ├── B/
+        ├── C/
+        ├── D/
+        └── E/
+```
+
+ASL-HG contains images named like `P1_A_1.jpg`, organized by letter. Pugeault Dataset A contains RGB images named `color_*.png`, organized by participant and letter.
+
+Prepare the datasets:
+
+```bash
+python dev.py prepare asl-hg
+python dev.py prepare pugeault
+```
+
+Train the static models:
+
+```bash
+python dev.py train knn
+python dev.py train rf
+python dev.py train geometric-knn
+python dev.py train geometric-rf
+python dev.py train final
+```
+
+`train final` saves the reproduced model as `models/static_classifier_retrained.joblib`, without overwriting the supplied classifier.
+
+Evaluate the supplied final model on the held-out ASL-HG test participants:
+
+```bash
+python dev.py test-static
+```
+
+The original evaluation produced **95.21% accuracy and 0.9501 macro-F1** on 4,800 held-out static-letter images. Retraining in a different software environment may produce different results.
+
+The model evaluation uses individual images; it does not measure continuous real-time fingerspelling accuracy.
+
+## Project Report
+
+The project report documents the computer vision methodology, datasets, experiments, evaluation results, failure analysis, and limitations.
+
+## References
+
+- [ASL-HG Dataset](https://data.mendeley.com/datasets/j4y5w2c8w9/1)
+- [Pugeault & Bowden ASL Finger Spelling Dataset](https://empslocal.ex.ac.uk/people/staff/np331/index.php?section=FingerSpellingDataset)
+- [MediaPipe Hand Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker)
+- [scikit-learn](https://scikit-learn.org/)

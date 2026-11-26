@@ -1,0 +1,6 @@
+model,features,validation_participant,validation_accuracy,macro_f1
+knn,63,P8,0.7747,0.7434
+rf,63,P8,0.8569,0.8234
+geometric-knn,108,P8,0.7121,0.6889
+geometric-rf,108,P8,0.8754,0.8531
+final-rf-pugeault,108,P8,0.9052,0.8768
