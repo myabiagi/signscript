@@ -146,26 +146,26 @@ ASL-HG contains images named like `P1_A_1.jpg`, organized by letter. Pugeault Da
 Prepare the datasets:
 
 ```bash
-python dev.py prepare asl-hg
-python dev.py prepare pugeault
+python dev.py prepare-static asl-hg
+python dev.py prepare-static pugeault
 ```
 
 Train the static models:
 
 ```bash
-python dev.py train knn
-python dev.py train rf
-python dev.py train geometric-knn
-python dev.py train geometric-rf
-python dev.py train final
+python dev.py train-static knn
+python dev.py train-static rf
+python dev.py train-static geometric-knn
+python dev.py train-static geometric-rf
+python dev.py train-static final
 ```
 
-`train final` saves the reproduced model as `models/static_classifier_retrained.joblib`, without overwriting the supplied classifier.
+`train-static final` saves the reproduced model as `models/static_classifier_retrained.joblib`, without overwriting the supplied classifier.
 
 Evaluate the supplied final model on the held-out ASL-HG test participants:
 
 ```bash
-python dev.py test-static
+python dev.py eval-static
 ```
 
 The original evaluation produced **95.21% accuracy and 0.9501 macro-F1** on 4,800 held-out static-letter images. Retraining in a different software environment may produce different results.

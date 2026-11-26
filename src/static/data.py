@@ -19,7 +19,7 @@ def load_features(path):
 
     if not path.exists():
         raise FileNotFoundError(
-            f"Missing {path}. Run prepare first."
+            f"Missing {path}. Run: python dev.py prepare-static"
         )
 
     with np.load(path) as data:

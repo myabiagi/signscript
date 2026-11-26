@@ -10,9 +10,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 COMMANDS = {
     "start": "src/main.py",
     "start-dynamic": "src/dynamic/live_dynamic.py",
-    "prepare": "src/static/prepare_data.py",
-    "train": "src/static/train.py",
-    "test-static": "src/static/evaluate.py",
+    "prepare-static": "src/static/prepare_data.py",
+    "train-static": "src/static/train.py",
+    "eval-static": "src/static/evaluate.py",
     "prepare-dynamic": "src/dynamic/prepare_dynamic.py",
     "train-dynamic": "src/dynamic/train_dynamic.py",
     "eval-dynamic": "src/dynamic/eval_dynamic.py",
