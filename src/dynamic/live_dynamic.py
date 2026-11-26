@@ -267,6 +267,8 @@ def run_webcam(camera_index=0, method=DEFAULT_METHOD):
                 if not ret:
                     break
 
+                frame = cv2.flip(frame, 1)
+
                 timestamp_ms = time.monotonic_ns() // 1_000_000
                 result = detect_hands(frame, detector, timestamp_ms)
 

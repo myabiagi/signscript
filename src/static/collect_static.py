@@ -78,7 +78,8 @@ def run_collector(camera_index=0):
             if not ok:
                 break
 
-            # No horizontal flip — match live main.py so landmarks align.
+            # Mirror for selfie view; detect on the flipped frame.
+            frame = cv2.flip(frame, 1)
             timestamp_ms = frame_id
             frame_id += 1
 

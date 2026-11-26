@@ -13,23 +13,27 @@ FINGER_JOINTS = (
 TIPS = (4, 8, 12, 16, 20)
 KNUCKLES = (5, 9, 13, 17)
 
-def normalize_landmarks(hand_landmarks, handedness):
-    """Normalize 21 landmarks into 63 coordinates."""
-    if len(hand_landmarks) != 21:
-        raise ValueError("Expected 21 hand landmarks.")
+def normalize_points(points, handedness):
+    """
+    Wrist-center, mirror left hands, and scale 21x3 landmarks to 63-D.
 
+    Args:
+        points: Array-like shape (21, 3).
+        handedness (str): "Left" or "Right".
+
+    Returns:
+        numpy.ndarray: Shape (63,) float32.
+    """
     if handedness not in ("Left", "Right"):
         raise ValueError(
             f"Unexpected handedness: {handedness}"
         )
 
-    points = np.array(
-        [
-            [landmark.x, landmark.y, landmark.z]
-            for landmark in hand_landmarks
-        ],
-        dtype=np.float32,
-    )
+    points = np.asarray(points, dtype=np.float32)
+    if points.shape != (21, 3):
+        raise ValueError(
+            f"Expected landmarks shape (21, 3), got {points.shape}"
+        )
 
     # Original wrist-centered normalization.
     wrist = points[0].copy()
@@ -46,7 +50,22 @@ def normalize_landmarks(hand_landmarks, handedness):
     if max_distance > 0:
         points = points / max_distance
 
-    return points.flatten()
+    return points.reshape(-1)
+
+
+def normalize_landmarks(hand_landmarks, handedness):
+    """Normalize 21 MediaPipe landmarks into 63 coordinates."""
+    if len(hand_landmarks) != 21:
+        raise ValueError("Expected 21 hand landmarks.")
+
+    points = np.array(
+        [
+            [landmark.x, landmark.y, landmark.z]
+            for landmark in hand_landmarks
+        ],
+        dtype=np.float32,
+    )
+    return normalize_points(points, handedness)
 
 def landmarks_array_from_hand(
     hand_landmarks, handedness, mirror_left=True

@@ -104,6 +104,17 @@ python dev.py start
 
 Show one static ASL handshape to the webcam.
 
+### Browser demo (optional)
+
+Local AYSPI-style page: MediaPipe runs in your browser; only landmarks are sent to a small FastAPI server (no video upload).
+
+```bash
+pip install -r requirements.txt
+python dev.py serve
+```
+
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000), allow the camera, and sign static letters. J/Z still need the desktop app (`python dev.py start`).
+
 The application displays the predicted letter, detected handedness, and hand landmarks.
 
 To reduce flickering, a letter must receive at least four matching predictions within a six-frame window. Until then, the last stable prediction remains displayed.

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SignScript — Live ASL letters</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="top">
+        <div class="brand">
+          <p class="brand-name">SignScript</p>
+          <p class="brand-tag">Live static ASL letters · COMP 4102</p>
+        </div>
+        <p class="privacy">
+          Landmarks only — webcam video stays in your browser.
+        </p>
+      </header>
+
+      <main class="stage">
+        <section class="camera-panel" aria-label="Webcam">
+          <div class="camera-frame">
+            <video id="webcam" playsinline muted></video>
+            <canvas id="overlay"></canvas>
+            <p id="camera-status" class="camera-status">Starting camera…</p>
+          </div>
+          <p class="hint">
+            Keep your hand close, centered, and well lit. Mirror view is on.
+          </p>
+        </section>
+
+        <aside class="readout" aria-live="polite">
+          <p class="readout-label">Prediction</p>
+          <p id="letter" class="letter">—</p>
+          <div class="meter" aria-hidden="true">
+            <div id="conf-bar" class="meter-fill"></div>
+          </div>
+          <p id="confidence" class="confidence">Confidence 0%</p>
+          <p id="hand" class="hand">Hand —</p>
+          <p id="status" class="status">Waiting for hand…</p>
+          <button id="start-btn" type="button" class="btn">
+            Enable camera
+          </button>
+        </aside>
+      </main>
+
+      <section class="how">
+        <h2>How it works</h2>
+        <ol>
+          <li>MediaPipe tracks 21 hand landmarks in your browser.</li>
+          <li>Only those coordinates are sent to the SignScript API.</li>
+          <li>The same Random Forest used in <code>dev.py start</code> predicts the letter.</li>
+        </ol>
+        <p class="note">
+          J and Z need motion — use <code>python dev.py start</code> for the full
+          desktop demo. This page covers the 24 static letters.
+        </p>
+      </section>
+    </div>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>

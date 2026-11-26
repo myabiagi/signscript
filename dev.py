@@ -17,6 +17,7 @@ COMMANDS = {
     "prepare-dynamic": "src/dynamic/prepare_dynamic.py",
     "train-dynamic": "src/dynamic/train_dynamic.py",
     "eval-dynamic": "src/dynamic/eval_dynamic.py",
+    "serve": "src/web_api.py",
 }
 
 def main():
