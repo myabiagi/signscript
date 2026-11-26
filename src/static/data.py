@@ -6,6 +6,8 @@ import numpy as np
 
 ASL_HG_PATH = Path("data/processed/static_asl_hg.npz")
 PUGEAULT_PATH = Path("data/processed/static_pugeault.npz")
+GRAUDT_PATH = Path("data/processed/static_graudt.npz")
+WEBCAM_PATH = Path("data/processed/static_webcam.npz")
 
 LETTERS = tuple("ABCDEFGHIKLMNOPQRSTUVWXY")
 
@@ -110,3 +112,52 @@ def combine_pugeault_training(X_train, y_train, X_val):
     )
 
     return X_train, y_train
+
+
+def _load_63_or_none(path):
+    """Load a prepared 63-D feature cache if it exists."""
+    path = Path(path)
+    if not path.exists():
+        return None
+
+    X, y, paths, participant_ids = load_features(path)
+    if X.shape[1] != 63:
+        raise ValueError(
+            f"{path} must contain 63-D landmarks, got {X.shape[1]}"
+        )
+    if not np.isfinite(X).all():
+        raise ValueError(f"{path} contains invalid values.")
+    return X, y, paths, participant_ids
+
+
+def load_webcam_domain_sources():
+    """
+    Load optional Graudt + local webcam landmark caches (63-D).
+
+    Returns:
+        list[tuple]: Non-empty (X, y, paths, ids) bundles.
+    """
+    bundles = []
+    for path, label in (
+        (GRAUDT_PATH, "Graudt"),
+        (WEBCAM_PATH, "webcam"),
+    ):
+        loaded = _load_63_or_none(path)
+        if loaded is None:
+            print(f"Skipping missing {label} cache: {path}")
+            continue
+        X, y, paths, ids = loaded
+        print(f"Loaded {label}: {len(y)} samples from {path}")
+        bundles.append((X, y, paths, ids))
+    return bundles
+
+
+def repeat_rows(X, y, times):
+    """Oversample rows to up-weight webcam-domain examples."""
+    times = int(times)
+    if times <= 1:
+        return X, y
+    return (
+        np.repeat(X, times, axis=0),
+        np.repeat(y, times, axis=0),
+    )

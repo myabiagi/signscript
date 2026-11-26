@@ -172,6 +172,32 @@ The original evaluation produced **95.21% accuracy and 0.9501 macro-F1** on 4,80
 
 The model evaluation uses individual images; it does not measure continuous real-time fingerspelling accuracy.
 
+### Improving live webcam accuracy (domain mix)
+
+Offline ASL-HG accuracy does not fully transfer to a laptop webcam. To close that gap:
+
+1. Download [ASL Alphabet Hand Landmarks](https://www.kaggle.com/datasets/borisgraudt/asl-alphabet-hand-landmarks) (MediaPipe `.npy` from webcam capture).
+2. Extract so letter folders sit here (A/, B/, … — J/Z are ignored for static):
+
+```text
+data/static/graudt_landmarks/
+├── A/
+├── B/
+└── ...
+```
+
+3. Prepare + optionally capture your own hard letters (A/S, M/N, …):
+
+```bash
+python dev.py prepare-static graudt
+python dev.py collect-static          # SPACE saves current letter
+python dev.py prepare-static webcam
+python dev.py train-static webcam-mix --install
+python dev.py start
+```
+
+`webcam-mix` keeps ASL-HG/Pugeault when those caches exist, adds Graudt + your webcam landmarks (up-weighted), and `--install` replaces `models/static_classifier.joblib` for live use.
+
 ## Project Report
 
 The project report documents the computer vision methodology, datasets, experiments, evaluation results, failure analysis, and limitations.
