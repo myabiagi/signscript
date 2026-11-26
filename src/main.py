@@ -1,3 +1,4 @@
+from collections import Counter, deque
 from pathlib import Path
 import time
 
@@ -14,12 +15,31 @@ from inference import load_alphabet_model, predict_letter
 MODEL_PATH = Path("models/hand_landmarker.task")
 WINDOW_NAME = "SignScript"
 
+SMOOTHING_WINDOW = 6
+MIN_MATCHING_PREDICTIONS = 4
+
+def smooth_prediction(history, previous_prediction):
+    """Keep the last stable letter until a new letter has enough votes."""
+    if len(history) < MIN_MATCHING_PREDICTIONS:
+        return previous_prediction
+
+    letter, count = Counter(history).most_common(1)[0]
+
+    if count >= MIN_MATCHING_PREDICTIONS:
+        return letter
+
+    return previous_prediction
+
+
 def run_webcam(camera_index=0):
-    """Capture webcam frames and display ASL letter predictions."""
+    """Display the smoothed ASL letter prediction."""
     cap = cv2.VideoCapture(camera_index)
 
     if not cap.isOpened():
         raise RuntimeError("Could not open webcam.")
+
+    prediction_history = deque(maxlen=SMOOTHING_WINDOW)
+    stable_prediction = "Uncertain"
 
     try:
         alphabet_model = load_alphabet_model()
@@ -31,31 +51,42 @@ def run_webcam(camera_index=0):
                 if not ret:
                     break
 
-                # Detect hands in the current frame
                 timestamp_ms = time.monotonic_ns() // 1_000_000
                 result = detect_hands(frame, detector, timestamp_ms)
 
-                # Predict the letter using the first detected hand
-                prediction = "No hand detected"
+                smoothed_prediction = "No hand detected"
                 handedness = "None"
 
                 if result.hand_landmarks:
                     landmarks = result.hand_landmarks[0]
                     handedness = result.handedness[0][0].category_name
-                    print(f"Detected hand: {handedness}", end="\r")
-                    
+
                     features = normalize_landmarks(
                         landmarks, handedness
                     )
-                    prediction = predict_letter(alphabet_model, features)
 
-                # Draw detected hand landmarks
+                    raw_prediction = str(
+                        predict_letter(alphabet_model, features)
+                    )
+
+                    prediction_history.append(raw_prediction)
+
+                    stable_prediction = smooth_prediction(
+                        prediction_history,
+                        stable_prediction
+                    )
+
+                    smoothed_prediction = stable_prediction
+
+                else:
+                    prediction_history.clear()
+                    stable_prediction = "Uncertain"
+
                 frame = draw_landmarks(frame, result)
-               
-                # Display the predicted letter
+
                 cv2.putText(
                     frame,
-                    f"Prediction: {prediction}",
+                    f"Letter: {smoothed_prediction}",
                     (20, 40),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.9,
@@ -63,7 +94,6 @@ def run_webcam(camera_index=0):
                     2,
                 )
 
-                # Display the detected hand
                 cv2.putText(
                     frame,
                     f"Hand: {handedness}",
@@ -75,7 +105,11 @@ def run_webcam(camera_index=0):
                 )
 
                 cv2.imshow(WINDOW_NAME, frame)
-                cv2.waitKey(1)
+
+                key = cv2.waitKey(1) & 0xFF
+
+                if key == ord("q"):
+                    break
 
                 if cv2.getWindowProperty(
                     WINDOW_NAME, cv2.WND_PROP_VISIBLE

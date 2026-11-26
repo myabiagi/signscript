@@ -9,6 +9,12 @@ COMMANDS = {
     "start": "src/main.py",
     "prepare-alphabet": "src/alphabet/prepare_alphabet.py",
     "train-alphabet": "src/alphabet/train_alphabet.py",
+    "train-random-forest": "src/alphabet/train_random_forest.py",
+    "train-combined": "src/alphabet/train_combined.py",
+    "train-geometric": "src/alphabet/train_geometric.py",
+    "prepare-pugeault": "src/alphabet/prepare_pugeault.py",
+    "train-pugeault": "src/alphabet/train_pugeault.py",
+    "test-final": "src/alphabet/test_final.py",
 }
 
 def main():
