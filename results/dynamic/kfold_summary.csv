@@ -1,0 +1,4 @@
+method,accuracy_mean,accuracy_std,macro_f1_mean,macro_f1_std,false_dynamic_mean,false_dynamic_std,n_folds
+raw,0.8000,0.1118,0.7633,0.1401,0.0000,0.0000,5
+frame,0.9000,0.0559,0.8933,0.0596,0.0000,0.0000,5
+sequence,0.7750,0.1046,0.7667,0.1047,0.1000,0.2236,5

@@ -1,4 +1,4 @@
-"""Static ASL hand landmark feature extraction."""
+"""ASL hand landmark feature extraction."""
 
 import numpy as np
 
@@ -47,6 +47,59 @@ def normalize_landmarks(hand_landmarks, handedness):
         points = points / max_distance
 
     return points.flatten()
+
+def landmarks_array_from_hand(
+    hand_landmarks, handedness, mirror_left=True
+):
+    """
+    Convert 21 MediaPipe landmarks into a (21, 3) array.
+
+    Unlike normalize_landmarks, this keeps camera-frame position and scale.
+    Optional mirroring aligns left hands with right-hand orientation for
+    dynamic sequence models.
+
+    Args:
+        hand_landmarks: MediaPipe's 21 landmarks.
+        handedness (str): "Left" or "Right".
+        mirror_left (bool): Mirror x for left hands.
+
+    Returns:
+        numpy.ndarray: Shape (21, 3) float32 coordinates.
+    """
+    if len(hand_landmarks) != 21:
+        raise ValueError("Expected 21 hand landmarks.")
+
+    if handedness not in ("Left", "Right"):
+        raise ValueError(
+            f"Unexpected handedness: {handedness}"
+        )
+
+    points = np.array(
+        [
+            [landmark.x, landmark.y, landmark.z]
+            for landmark in hand_landmarks
+        ],
+        dtype=np.float32,
+    )
+
+    if mirror_left and handedness == "Left":
+        points[:, 0] = -points[:, 0]
+
+    return points
+
+def sample_frame_indices(num_frames, num_samples):
+    """
+    Choose evenly spaced frame indices across a clip.
+
+    Always returns exactly num_samples indices. If the clip is shorter,
+    linspace repeats frames so downstream vectors stay fixed-length.
+    """
+    if num_frames <= 0 or num_samples <= 0:
+        return np.array([], dtype=np.int32)
+
+    return np.linspace(
+        0, num_frames - 1, num_samples, dtype=np.int32
+    )
 
 def _angles(points, a, b, c):
     """Compute joint angles for batches of landmarks."""
