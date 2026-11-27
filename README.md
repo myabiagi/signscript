@@ -7,23 +7,24 @@ The project targets the 26-letter ASL fingerspelling alphabet:
 - **24 static letters:** A–Z, excluding J and Z.
 - **2 dynamic letters:** J and Z, which require motion recognition.
 
-**Current implementation:** The 24 static letters are supported. Dynamic J/Z recognition is under development.
+**Current implementation:** Static letters and motion-based **J/Z** are supported in a browser demo. MediaPipe runs in the browser; only landmarks are sent to a local FastAPI server (no video upload).
 
 ## Features
 
-- Live webcam input through OpenCV
-- MediaPipe detection and visualization of 21 hand landmarks
+- Browser live demo (`python dev.py start`) with webcam + landmark overlay
+- MediaPipe detection of 21 hand landmarks
 - Left- and right-hand normalization
 - 108-dimensional static hand features
 - Random Forest classification of 24 static letters
-- Prediction smoothing using six recent predictions and four matching votes
-- Stable letter display during uncertain transitions
-- Pretrained classifier included; no retraining required to run the application
+- Sequence Random Forest for J/Z strokes
+- Shared motion thresholds between Python and the browser (`/api/config`)
+- Pretrained classifiers included; no retraining required to run the demo
 
 ## Technologies
 
 - Python
-- OpenCV
+- FastAPI / Uvicorn
+- OpenCV (dataset prepare / collect)
 - MediaPipe Hand Landmarker
 - NumPy
 - scikit-learn
@@ -31,12 +32,9 @@ The project targets the 26-letter ASL fingerspelling alphabet:
 
 ## Getting Started
 
-### 1. Clone the repository
+### 1. Extract the project zip
 
-```bash
-git clone https://github.com/myabiagi/signscript.git
-cd signscript
-```
+Unzip the submitted project archive and open a terminal in the extracted `signscript` folder.
 
 ### 2. Create a virtual environment
 
@@ -47,7 +45,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-**macOS/Linux:**
+**macOS:**
 
 ```bash
 python3 -m venv .venv
@@ -60,11 +58,18 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-### 4. Download the MediaPipe model
+### 4. Confirm the model files
 
-SignScript uses MediaPipe's pretrained Hand Landmarker for detecting hands.
+After extracting, `models/` should contain:
 
-The required model must be saved as `models/hand_landmarker.task`.
+```text
+models/
+├── hand_landmarker.task           # MediaPipe (prepare / train)
+├── static_classifier.joblib       # 24 static letters
+└── dynamic_rf_jz_sequence.joblib  # J/Z
+```
+
+If `hand_landmarker.task` is missing:
 
 **Windows PowerShell:**
 
@@ -76,25 +81,16 @@ Invoke-WebRequest `
   -OutFile "models/hand_landmarker.task"
 ```
 
-**macOS/Linux:**
+**macOS:**
 
 ```bash
 mkdir -p models
-
 curl -L \
   "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" \
   -o models/hand_landmarker.task
 ```
 
-After setup, the models directory should contain:
-
-```text
-models/
-├── hand_landmarker.task
-└── static_classifier.joblib
-```
-
-`static_classifier.joblib` is the trained SignScript classifier included in the repository.
+The browser demo loads MediaPipe from a CDN; the `.task` file is only needed for dataset prepare / train.
 
 ## Run SignScript
 
@@ -102,37 +98,25 @@ models/
 python dev.py start
 ```
 
-Show one static ASL handshape to the webcam.
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000), click **Enable camera**, allow webcam access, and sign.
 
-### Browser demo (optional)
+- Hold a still handshape for static letters.
+- Draw a clear **J** hook or **Z** zigzag for motion letters.
+- Keep the hand close, centered, and well lit.
 
-Local AYSPI-style page: MediaPipe runs in your browser; only landmarks are sent to a small FastAPI server (no video upload).
+**The training datasets are not required to run the supplied classifiers.**
 
-```bash
-pip install -r requirements.txt
-python dev.py serve
-```
+## Reproducing Training
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000), allow the camera, and sign static letters. J/Z still need the desktop app (`python dev.py start`).
+Download (in this order):
 
-The application displays the predicted letter, detected handedness, and hand landmarks.
+1. [ASL Dynamic Gestures — Mendeley](https://data.mendeley.com/datasets/8fmvr9m98w/3) → `ASL_dynamic.zip` (J/Z motion clips)
+2. [ASL-HG — Mendeley](https://data.mendeley.com/datasets/j4y5w2c8w9/1) → `ASL_Raw_Images.zip` (static letters)
+3. [Pugeault & Bowden — ASL Finger Spelling](https://empslocal.ex.ac.uk/people/staff/np331/index.php?section=FingerSpellingDataset) → **Dataset A: 5 users (easy)**
 
-To reduce flickering, a letter must receive at least four matching predictions within a six-frame window. Until then, the last stable prediction remains displayed.
+### Static datasets
 
-Press **Q** or close the webcam window to exit.
-
-**The training datasets are not required to run the supplied classifier.**
-
-## Reproducing Training (Optional)
-
-The repository also includes preparation, training, and evaluation scripts.
-
-Download the two static-letter datasets:
-
-- [ASL-HG — Mendeley Data](https://data.mendeley.com/datasets/j4y5w2c8w9/1)
-- [Pugeault & Bowden — ASL Finger Spelling Dataset A](https://empslocal.ex.ac.uk/people/staff/np331/index.php?section=FingerSpellingDataset)
-
-Extract them into:
+Extract `ASL_Raw_Images.zip` and Dataset A into:
 
 ```text
 data/
@@ -152,70 +136,46 @@ data/
         └── E/
 ```
 
-ASL-HG contains images named like `P1_A_1.jpg`, organized by letter. Pugeault Dataset A contains RGB images named `color_*.png`, organized by participant and letter.
-
-Prepare the datasets:
+ASL-HG uses images like `P1_A_1.jpg` by letter. Pugeault Dataset A uses `color_*.png` by participant and letter.
 
 ```bash
 python dev.py prepare-static asl-hg
 python dev.py prepare-static pugeault
-```
-
-Train the static models:
-
-```bash
-python dev.py train-static knn
-python dev.py train-static rf
-python dev.py train-static geometric-knn
-python dev.py train-static geometric-rf
-python dev.py train-static final
-```
-
-`train-static final` saves the reproduced model as `models/static_classifier_retrained.joblib`, without overwriting the supplied classifier.
-
-Evaluate the supplied final model on the held-out ASL-HG test participants:
-
-```bash
+python dev.py train-static final --install
 python dev.py eval-static
 ```
 
-The original evaluation produced **95.21% accuracy and 0.9501 macro-F1** on 4,800 held-out static-letter images. Retraining in a different software environment may produce different results.
+`train-static final --install` writes `models/static_classifier.joblib`. Without `--install`, it still saves `models/static_classifier_retrained.joblib`.
 
-The model evaluation uses individual images; it does not measure continuous real-time fingerspelling accuracy.
+Held-out ASL-HG evaluation of the shipped static model: **95.21% accuracy** and **0.9501 macro-F1** on 4,800 images.
 
-### Improving live webcam accuracy (domain mix)
+### Dynamic datasets (J / Z)
 
-Offline ASL-HG accuracy does not fully transfer to a laptop webcam. To close that gap:
-
-1. Download [ASL Alphabet Hand Landmarks](https://www.kaggle.com/datasets/borisgraudt/asl-alphabet-hand-landmarks) (MediaPipe `.npy` from webcam capture).
-2. Extract so letter folders sit here (A/, B/, … — J/Z are ignored for static):
+Extract `ASL_dynamic.zip` into:
 
 ```text
-data/static/graudt_landmarks/
-├── A/
-├── B/
-└── ...
+data/
+└── ASL_dynamic/
+    ├── J/.../frame_*.jpg
+    ├── Z/...
+    ├── I/...
+    └── D/...
 ```
 
-3. Prepare + optionally capture your own hard letters (A/S, M/N, …):
+J and Z are motion positives; I and D are used as negatives during training.
 
 ```bash
-python dev.py prepare-static graudt
-python dev.py collect-static          # SPACE saves current letter
-python dev.py prepare-static webcam
-python dev.py train-static webcam-mix --install
-python dev.py start
+python dev.py prepare-dynamic
+python dev.py train-dynamic
+python dev.py eval-dynamic
 ```
 
-`webcam-mix` keeps ASL-HG/Pugeault when those caches exist, adds Graudt + your webcam landmarks (up-weighted), and `--install` replaces `models/static_classifier.joblib` for live use.
+This writes `models/dynamic_rf_jz_sequence.joblib` (metrics under `results/dynamic/`).
 
-## Project Report
+## Dev commands
 
-The project report documents the computer vision methodology, datasets, experiments, evaluation results, failure analysis, and limitations.
-
-## References
-
-- [ASL-HG Dataset](https://data.mendeley.com/datasets/j4y5w2c8w9/1)
-- [Pugeault & Bowden ASL Finger Spelling Dataset](https://empslocal.ex.ac.uk/people/staff/np331/index.php?section=FingerSpellingDataset)
-- [MediaPipe Hand Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker)
-- [scikit-learn](https://scikit-learn.org/)
+```text
+python dev.py start
+python dev.py prepare-static | train-static | eval-static
+python dev.py prepare-dynamic | train-dynamic | eval-dynamic
+```

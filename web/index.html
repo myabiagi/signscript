@@ -17,11 +17,8 @@
       <header class="top">
         <div class="brand">
           <p class="brand-name">SignScript</p>
-          <p class="brand-tag">Live static ASL letters · COMP 4102</p>
+          <p class="brand-tag">Live ASL letters · COMP 4102</p>
         </div>
-        <p class="privacy">
-          Landmarks only — webcam video stays in your browser.
-        </p>
       </header>
 
       <main class="stage">
@@ -32,7 +29,7 @@
             <p id="camera-status" class="camera-status">Starting camera…</p>
           </div>
           <p class="hint">
-            Keep your hand close, centered, and well lit. Mirror view is on.
+            Keep your hand close, centered, and well lit.
           </p>
         </section>
 
@@ -51,17 +48,15 @@
         </aside>
       </main>
 
-      <section class="how">
-        <h2>How it works</h2>
-        <ol>
-          <li>MediaPipe tracks 21 hand landmarks in your browser.</li>
-          <li>Only those coordinates are sent to the SignScript API.</li>
-          <li>The same Random Forest used in <code>dev.py start</code> predicts the letter.</li>
-        </ol>
-        <p class="note">
-          J and Z need motion — use <code>python dev.py start</code> for the full
-          desktop demo. This page covers the 24 static letters.
-        </p>
+      <section class="alphabet" aria-label="ASL fingerspelling alphabet">
+        <div class="alphabet-head">
+          <h2>ASL alphabet</h2>
+          <p class="note">
+            Reference handshapes. <span class="asl-legend">J</span> and
+            <span class="asl-legend">Z</span> need motion, everything else is held still.
+          </p>
+        </div>
+        <div id="alphabet-grid" class="alphabet-grid"></div>
       </section>
     </div>
 
