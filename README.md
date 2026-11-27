@@ -7,8 +7,6 @@ The project targets the 26-letter ASL fingerspelling alphabet:
 - **24 static letters:** A–Z, excluding J and Z.
 - **2 dynamic letters:** J and Z, which require motion recognition.
 
-**Current implementation:** Static letters and motion-based **J/Z** are supported in a browser demo. MediaPipe runs in the browser; only landmarks are sent to a local FastAPI server (no video upload).
-
 ## Features
 
 - Browser live demo (`python dev.py start`) with webcam + landmark overlay
@@ -17,7 +15,7 @@ The project targets the 26-letter ASL fingerspelling alphabet:
 - 108-dimensional static hand features
 - Random Forest classification of 24 static letters
 - Sequence Random Forest for J/Z strokes
-- Shared motion thresholds between Python and the browser (`/api/config`)
+- Shared motion thresholds between Python and the browser
 - Pretrained classifiers included; no retraining required to run the demo
 
 ## Technologies
@@ -90,7 +88,7 @@ curl -L \
   -o models/hand_landmarker.task
 ```
 
-The browser demo loads MediaPipe from a CDN; the `.task` file is only needed for dataset prepare / train.
+The browser demo loads MediaPipe from a CDN; the `.task` file is only needed for dataset preparation and training.
 
 ## Run SignScript
 
@@ -141,11 +139,19 @@ ASL-HG uses images like `P1_A_1.jpg` by letter. Pugeault Dataset A uses `color_*
 ```bash
 python dev.py prepare-static asl-hg
 python dev.py prepare-static pugeault
-python dev.py train-static final --install
+python dev.py train-static final
 python dev.py eval-static
 ```
 
-`train-static final --install` writes `models/static_classifier.joblib`. Without `--install`, it still saves `models/static_classifier_retrained.joblib`.
+`train-static final` writes `models/static_classifier_retrained.joblib` and preserves the supplied browser classifier.
+
+To replace the supplied static model, use:
+
+```bash
+python dev.py train-static final --install
+```
+
+This replaces `models/static_classifier.joblib`.
 
 Held-out ASL-HG evaluation of the shipped static model: **95.21% accuracy** and **0.9501 macro-F1** on 4,800 images.
 
@@ -170,12 +176,45 @@ python dev.py train-dynamic
 python dev.py eval-dynamic
 ```
 
-This writes `models/dynamic_rf_jz_sequence.joblib` (metrics under `results/dynamic/`).
+`train-dynamic` compares raw, frame, and sequence normalization and saves their experiment models.
 
-## Dev commands
+The sequence J/Z classifier is saved to `models/dynamic_rf_jz_sequence_retrained.joblib`, preserving the supplied browser model.
 
-```text
+To replace the supplied dynamic model, use:
+
+```bash
+python dev.py train-dynamic --install
+```
+
+This replaces `models/dynamic_rf_jz_sequence.joblib`.
+
+Experiment metrics are saved under `results/dynamic/`.
+
+**Note:** `eval-dynamic` performs five-fold cross-validation on the prepared sequences; it does not measure browser-webcam accuracy.
+
+## Dev Commands
+
+### Run the application
+
+```bash
 python dev.py start
-python dev.py prepare-static | train-static | eval-static
-python dev.py prepare-dynamic | train-dynamic | eval-dynamic
+```
+
+### Static recognition
+
+```bash
+python dev.py prepare-static asl-hg
+python dev.py prepare-static pugeault
+python dev.py train-static final
+python dev.py train-static final --install
+python dev.py eval-static
+```
+
+### Dynamic recognition
+
+```bash
+python dev.py prepare-dynamic
+python dev.py train-dynamic
+python dev.py train-dynamic --install
+python dev.py eval-dynamic
 ```
