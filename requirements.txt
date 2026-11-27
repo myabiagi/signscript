@@ -1,8 +1,7 @@
-mediapipe
-opencv-python
-numpy
-scikit-learn
-matplotlib
-joblib
-fastapi
-uvicorn
+mediapipe==1.2.3
+opencv-python==5.1.0.95
+numpy==2.5.5
+scikit-learn==1.9.1
+joblib==1.6.0
+fastapi==0.165.0
+uvicorn==0.54.0

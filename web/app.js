@@ -1,10 +1,4 @@
-/**
- * SignScript browser demo.
- * MediaPipe Hands in-page; POST landmarks only to /api/predict.
- *
- * Preview is mirrored (selfie). Landmarks sent to the API are converted into
- * the same mirrored camera space used by `python dev.py start` after cv2.flip.
- */
+/** Browser demo: camera + MediaPipe, posts landmarks to /api/*. */
 
 import {
   FilesetResolver,
@@ -21,9 +15,22 @@ const confEl = document.getElementById("confidence");
 const confBar = document.getElementById("conf-bar");
 const handEl = document.getElementById("hand");
 const statusEl = document.getElementById("status");
+const alphabetGrid = document.getElementById("alphabet-grid");
 
-const PREDICT_EVERY_MS = 120;
-const STABLE_FRAMES = 4;
+/** Defaults; overwritten by GET /api/config. */
+const cfg = {
+  predictEveryMs: 120,
+  stableFrames: 4,
+  moveSpeed: 0.022,
+  idleSpeed: 0.012,
+  speedEma: 0.35,
+  maxBufferFrames: 90,
+  minStrokeFrames: 4,
+  dynamicHoldMs: 1800,
+  tipIndices: [4, 8, 12, 16, 20],
+  wristIndex: 0,
+  indexTip: 8,
+};
 
 let handLandmarker = null;
 let running = false;
@@ -31,6 +38,15 @@ let lastVideoTime = -1;
 let lastPredictAt = 0;
 let pendingPredict = false;
 let recentLetters = [];
+
+let previousSelfie = null;
+let smoothSpeed = 0;
+let moving = false;
+let moveFrames = [];
+let moveHandedness = "Right";
+let moveHandednessDisplay = "Right";
+let dynamicHoldUntil = 0;
+let pendingDynamic = false;
 
 const CONNECTIONS = [
   [0, 1], [1, 2], [2, 3], [3, 4],
@@ -41,6 +57,9 @@ const CONNECTIONS = [
   [5, 9], [9, 13], [13, 17],
 ];
 
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+const MOTION_LETTERS = new Set(["J", "Z"]);
+
 function setStatus(text) {
   statusEl.textContent = text;
 }
@@ -50,21 +69,100 @@ function setCameraStatus(text) {
   cameraStatus.hidden = !text;
 }
 
-function updateReadout(letter, confidence, handedness) {
+function updateReadout(letter, confidence, handedness, kind = "static") {
   letterEl.textContent = letter || "—";
   const pct = Math.round((confidence || 0) * 100);
-  confEl.textContent = `Confidence ${pct}%`;
+  confEl.textContent = `Confidence ${pct}%${kind === "dynamic" ? " · J/Z" : ""}`;
   confBar.style.width = `${pct}%`;
-  if (pct >= 65) confBar.style.background = "var(--good)";
+  if (pct >= 65) confBar.style.background = kind === "dynamic" ? "#00c8dc" : "var(--good)";
   else if (pct >= 45) confBar.style.background = "var(--warn)";
   else confBar.style.background = "var(--bad)";
   handEl.textContent = handedness ? `Hand ${handedness}` : "Hand —";
+  highlightAlphabet(letter);
 }
 
-function swapHandedness(label) {
-  if (label === "Left") return "Right";
-  if (label === "Right") return "Left";
-  return label;
+function highlightAlphabet(letter) {
+  if (!alphabetGrid) return;
+  for (const tile of alphabetGrid.querySelectorAll(".asl-tile")) {
+    tile.classList.toggle("is-active", letter && tile.dataset.letter === letter);
+  }
+}
+
+function buildAlphabetGrid() {
+  if (!alphabetGrid) return;
+  alphabetGrid.innerHTML = "";
+  for (const letter of ALPHABET) {
+    const tile = document.createElement("figure");
+    tile.className = "asl-tile";
+    tile.dataset.letter = letter;
+    if (MOTION_LETTERS.has(letter)) tile.classList.add("is-motion");
+
+    const img = document.createElement("img");
+    img.src = `/static/asl/${letter}.svg`;
+    img.alt = `ASL handshape for ${letter}`;
+    img.loading = "lazy";
+    img.width = 96;
+    img.height = 96;
+
+    const caption = document.createElement("figcaption");
+    caption.textContent = letter;
+    if (MOTION_LETTERS.has(letter)) {
+      const tag = document.createElement("span");
+      tag.className = "asl-tag";
+      tag.textContent = "motion";
+      caption.appendChild(tag);
+    }
+
+    tile.append(img, caption);
+    alphabetGrid.appendChild(tile);
+  }
+}
+
+/** Flip x into OpenCV selfie space. */
+function toSelfieFrame(landmarks) {
+  return landmarks.map((p) => [1 - p.x, p.y, p.z]);
+}
+
+/** Mirror x so the overlay matches the CSS-flipped video. */
+function displayX(rawX) {
+  return (1 - rawX) * canvas.width;
+}
+
+function displayY(rawY) {
+  return rawY * canvas.height;
+}
+
+function handSpeed(prev, curr) {
+  if (!prev || !curr) return 0;
+  const indices = cfg.tipIndices.concat([cfg.wristIndex]);
+  let total = 0;
+  for (const i of indices) {
+    const dx = curr[i][0] - prev[i][0];
+    const dy = curr[i][1] - prev[i][1];
+    total += Math.hypot(dx, dy);
+  }
+  return total / indices.length;
+}
+
+function tipTrailFromSelfieFrames(frames) {
+  const tip = cfg.indexTip ?? 8;
+  return frames.map((frame) => [frame[tip][0], frame[tip][1]]);
+}
+
+function apiErrorMessage(err, fallback) {
+  const detail = err?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d) => d.msg || JSON.stringify(d)).join("; ");
+  }
+  return fallback;
+}
+
+async function loadConfig() {
+  const res = await fetch("/api/config");
+  if (!res.ok) return;
+  const data = await res.json();
+  Object.assign(cfg, data);
 }
 
 async function createLandmarker() {
@@ -101,48 +199,80 @@ function clearOverlay() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
+/** Draw the index-tip path while a stroke is recorded. */
+function drawStrokeTrail(points) {
+  if (!points || points.length < 2) return;
+
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  for (let i = 1; i < points.length; i++) {
+    const t = i / (points.length - 1);
+    ctx.strokeStyle = "#00c8dc";
+    ctx.globalAlpha = 0.25 + 0.75 * t;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(points[i - 1][0] * canvas.width, points[i - 1][1] * canvas.height);
+    ctx.lineTo(points[i][0] * canvas.width, points[i][1] * canvas.height);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  const last = points[points.length - 1];
+  ctx.fillStyle = "#00c8dc";
+  ctx.beginPath();
+  ctx.arc(last[0] * canvas.width, last[1] * canvas.height, 5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function drawHand(landmarks) {
-  const w = canvas.width;
-  const h = canvas.height;
-  clearOverlay();
   ctx.strokeStyle = "#e08a3c";
   ctx.fillStyle = "#f9e867";
   ctx.lineWidth = 3;
+  ctx.globalAlpha = 1;
 
-  // Landmark coords are from the unflipped video. The canvas is CSS-mirrored
-  // with the video, so drawing at (x, y) keeps the skeleton on the hand.
   for (const [a, b] of CONNECTIONS) {
     const pa = landmarks[a];
     const pb = landmarks[b];
     ctx.beginPath();
-    ctx.moveTo(pa.x * w, pa.y * h);
-    ctx.lineTo(pb.x * w, pb.y * h);
+    ctx.moveTo(displayX(pa.x), displayY(pa.y));
+    ctx.lineTo(displayX(pb.x), displayY(pb.y));
     ctx.stroke();
   }
 
   for (const p of landmarks) {
     ctx.beginPath();
-    ctx.arc(p.x * w, p.y * h, 4, 0, Math.PI * 2);
+    ctx.arc(displayX(p.x), displayY(p.y), 4, 0, Math.PI * 2);
     ctx.fill();
   }
 }
 
+function drawOverlay(landmarks) {
+  clearOverlay();
+  if (moving && moveFrames.length >= 2) {
+    drawStrokeTrail(tipTrailFromSelfieFrames(moveFrames));
+  }
+  if (landmarks) drawHand(landmarks);
+}
+
 function stableLetter(letter) {
   recentLetters.push(letter);
-  if (recentLetters.length > STABLE_FRAMES) recentLetters.shift();
-  if (recentLetters.length < STABLE_FRAMES) return null;
+  if (recentLetters.length > cfg.stableFrames) recentLetters.shift();
+  if (recentLetters.length < cfg.stableFrames) return null;
   if (recentLetters.every((x) => x === letter)) return letter;
   return null;
 }
 
-async function predict(landmarks, handednessRaw) {
-  if (pendingPredict) return;
+async function predictStatic(landmarks, handednessRaw) {
+  if (pendingPredict || pendingDynamic) return;
+  if (performance.now() < dynamicHoldUntil) return;
+
   pendingPredict = true;
   try {
-    // Match OpenCV selfie flip: mirror x, swap handedness label.
+    // Selfie-flip coords; keep MediaPipe anatomical Left/Right.
     const payload = {
-      landmarks: landmarks.map((p) => [1 - p.x, p.y, p.z]),
-      handedness: swapHandedness(handednessRaw),
+      landmarks: toSelfieFrame(landmarks),
+      handedness: handednessRaw,
     };
     const res = await fetch("/api/predict", {
       method: "POST",
@@ -151,19 +281,12 @@ async function predict(landmarks, handednessRaw) {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      const detail = err.detail;
-      const message =
-        typeof detail === "string"
-          ? detail
-          : Array.isArray(detail)
-            ? detail.map((d) => d.msg || JSON.stringify(d)).join("; ")
-            : res.statusText;
-      throw new Error(message);
+      throw new Error(apiErrorMessage(err, res.statusText));
     }
     const data = await res.json();
     const stable = stableLetter(data.letter);
     if (stable) {
-      updateReadout(data.letter, data.confidence, data.handedness);
+      updateReadout(data.letter, data.confidence, handednessRaw, "static");
       setStatus("Tracking");
     } else {
       setStatus("Stabilizing…");
@@ -172,6 +295,37 @@ async function predict(landmarks, handednessRaw) {
     setStatus(`Predict error: ${err.message}`);
   } finally {
     pendingPredict = false;
+  }
+}
+
+async function predictDynamic(frames, handedness, displayHandedness) {
+  if (pendingDynamic) return;
+  pendingDynamic = true;
+  setStatus("Classifying J/Z…");
+  try {
+    const res = await fetch("/api/predict-dynamic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ frames, handedness }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(apiErrorMessage(err, res.statusText));
+    }
+    const data = await res.json();
+    recentLetters = [];
+    updateReadout(
+      data.letter,
+      data.confidence,
+      displayHandedness || data.handedness,
+      "dynamic"
+    );
+    dynamicHoldUntil = performance.now() + cfg.dynamicHoldMs;
+    setStatus("Holding J/Z result");
+  } catch (err) {
+    setStatus(`Stroke skipped: ${err.message}`);
+  } finally {
+    pendingDynamic = false;
   }
 }
 
@@ -186,20 +340,65 @@ function loop() {
 
       if (result.landmarks && result.landmarks.length > 0) {
         const landmarks = result.landmarks[0];
-        drawHand(landmarks);
-        const handedness =
+        drawOverlay(landmarks);
+        const handednessRaw =
           result.handedness?.[0]?.[0]?.categoryName || "Right";
+        const selfie = toSelfieFrame(landmarks);
 
-        if (now - lastPredictAt >= PREDICT_EVERY_MS) {
-          lastPredictAt = now;
-          predict(landmarks, handedness);
+        const instant = handSpeed(previousSelfie, selfie);
+        previousSelfie = selfie;
+        smoothSpeed =
+          (1.0 - cfg.speedEma) * smoothSpeed + cfg.speedEma * instant;
+
+        const holdingDynamic = now < dynamicHoldUntil;
+
+        if (holdingDynamic) {
+          setStatus("Holding J/Z result");
+          setCameraStatus("");
+        } else if (smoothSpeed >= cfg.moveSpeed) {
+          if (!moving) {
+            moving = true;
+            moveFrames = [];
+            moveHandedness = handednessRaw;
+            moveHandednessDisplay = handednessRaw;
+            recentLetters = [];
+          }
+          if (moveFrames.length < cfg.maxBufferFrames) {
+            moveFrames.push(selfie);
+          }
+          setStatus("Moving — letter frozen");
+          setCameraStatus("");
+        } else if (moving) {
+          const frames = moveFrames.slice();
+          moving = false;
+          moveFrames = [];
+          if (frames.length >= cfg.minStrokeFrames) {
+            predictDynamic(frames, moveHandedness, moveHandednessDisplay);
+          } else {
+            setStatus("Motion too short for J/Z");
+          }
+          previousSelfie = selfie;
+        } else if (smoothSpeed < cfg.idleSpeed) {
+          if (now - lastPredictAt >= cfg.predictEveryMs) {
+            lastPredictAt = now;
+            predictStatic(landmarks, handednessRaw);
+          }
+          setCameraStatus("");
+        } else {
+          setStatus("Settling…");
+          setCameraStatus("");
         }
-        setCameraStatus("");
       } else {
         recentLetters = [];
+        previousSelfie = null;
+        smoothSpeed = 0;
+        moving = false;
+        moveFrames = [];
         clearOverlay();
-        updateReadout("—", 0, null);
-        setStatus("Waiting for hand…");
+        if (performance.now() >= dynamicHoldUntil) {
+          updateReadout("—", 0, null);
+          setStatus("Waiting for hand…");
+        }
         setCameraStatus("No hand detected");
       }
     }
@@ -213,12 +412,13 @@ async function start() {
   setCameraStatus("Loading hand model…");
   setStatus("Starting…");
   try {
+    await loadConfig();
     handLandmarker = await createLandmarker();
     await enableCamera();
     startBtn.hidden = true;
     running = true;
     setCameraStatus("");
-    setStatus("Show a static letter");
+    setStatus("Show a letter — draw J or Z with motion");
     requestAnimationFrame(loop);
   } catch (err) {
     startBtn.disabled = false;
@@ -227,11 +427,13 @@ async function start() {
   }
 }
 
+buildAlphabetGrid();
 startBtn.addEventListener("click", start);
 
 fetch("/api/health")
   .then((r) => r.json())
   .then((h) => {
     if (!h.ok) setStatus("API up, but static model file is missing.");
+    else if (!h.dynamic) setStatus("Static ready — dynamic J/Z model missing.");
   })
   .catch(() => setStatus("Cannot reach API — is the server running?"));
