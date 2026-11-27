@@ -1,0 +1,265 @@
+:root {
+  --bg: #12151a;
+  --bg-elev: #1a1f27;
+  --ink: #e8e4dc;
+  --muted: #9a958c;
+  --line: #2c3340;
+  --accent: #e08a3c;
+  --accent-dim: #8a5230;
+  --good: #6fbf7a;
+  --warn: #d4a017;
+  --bad: #d4654a;
+  --font: "IBM Plex Sans", system-ui, sans-serif;
+  --display: "IBM Plex Serif", Georgia, serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #243044 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, #2a2218 0%, transparent 50%),
+    var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+}
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  align-items: end;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1rem;
+}
+
+.brand-name {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.brand-tag,
+.hint,
+.note,
+.confidence,
+.hand,
+.status,
+.camera-status {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.7fr);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+@media (max-width: 800px) {
+  .stage {
+    grid-template-columns: 1fr;
+  }
+}
+
+.camera-panel {
+  min-width: 0;
+}
+
+.camera-frame {
+  position: relative;
+  background: #0a0c10;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+}
+
+#webcam,
+#overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Selfie mirror on the video only; overlay is drawn already mirrored. */
+#webcam {
+  transform: scaleX(-1);
+}
+
+.camera-status {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 2;
+  padding: 0.35rem 0.6rem;
+  background: rgba(10, 12, 16, 0.72);
+  border-radius: 3px;
+}
+
+.readout {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1.25rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.readout-label {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.letter {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(3.5rem, 10vw, 5.5rem);
+  line-height: 1;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.meter {
+  height: 6px;
+  background: #2a303a;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.15s ease, background 0.2s ease;
+}
+
+.btn {
+  margin-top: auto;
+  appearance: none;
+  border: 1px solid var(--accent-dim);
+  background: linear-gradient(180deg, #c97a38, #a85f28);
+  color: #1a120c;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.7rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  filter: brightness(1.06);
+}
+
+.btn[hidden] {
+  display: none;
+}
+
+.alphabet {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.alphabet-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.alphabet h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.asl-legend {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.alphabet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 0.65rem;
+}
+
+.asl-tile {
+  margin: 0;
+  padding: 0.55rem 0.4rem 0.45rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  text-align: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.asl-tile img {
+  display: block;
+  width: 100%;
+  max-width: 88px;
+  height: auto;
+  margin: 0 auto;
+  filter: invert(0.92) sepia(0.15) saturate(0.35);
+}
+
+.asl-tile figcaption {
+  margin-top: 0.35rem;
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.asl-tag {
+  font-family: var(--font);
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #00c8dc;
+}
+
+.asl-tile.is-motion {
+  border-color: #2a4a52;
+}
+
+.asl-tile.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-dim);
+}
+

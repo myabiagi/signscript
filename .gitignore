@@ -219,11 +219,10 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# SignScript - Downloaded pretrained models
-models/*.task
-
-# SignScript - Downloaded datasets
+# SignScript — local / regenerable artifacts
+models/experiments/
 data/
-
-# SignScript - Local recordings
 recordings/
+results/
+**/__pycache__/
+.venv/

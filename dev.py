@@ -1,4 +1,12 @@
-"""Development commands for SignScript."""
+"""Development commands for SignScript.
+
+Primary product path: python dev.py start
+
+Layout:
+  src/   — runtime (web API, models, shared helpers)
+  lab/   — prepare / train / eval / collect
+  web/   — browser UI
+"""
 
 import os
 import subprocess
@@ -8,20 +16,24 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent
 
 COMMANDS = {
-    "start": "src/main.py",
-    "start-dynamic": "src/dynamic/live_dynamic.py",
-    "collect-static": "src/static/collect_static.py",
-    "prepare-static": "src/static/prepare_data.py",
-    "train-static": "src/static/train.py",
-    "eval-static": "src/static/evaluate.py",
-    "prepare-dynamic": "src/dynamic/prepare_dynamic.py",
-    "train-dynamic": "src/dynamic/train_dynamic.py",
-    "eval-dynamic": "src/dynamic/eval_dynamic.py",
+    # Product (browser demo)
+    "start": "src/web_api.py",
+    # Static train / eval
+    "collect-static": "lab/static/collect_static.py",
+    "prepare-static": "lab/static/prepare_data.py",
+    "train-static": "lab/static/train.py",
+    "eval-static": "lab/static/evaluate.py",
+    # Dynamic train / eval
+    "prepare-dynamic": "lab/dynamic/prepare_dynamic.py",
+    "train-dynamic": "lab/dynamic/train_dynamic.py",
+    "eval-dynamic": "lab/dynamic/eval_dynamic.py",
 }
+
 
 def main():
     if len(sys.argv) < 2:
         print("Usage: python dev.py <command> [options]")
+        print("Primary: python dev.py start")
         print("Available commands:", ", ".join(COMMANDS))
         return
 
@@ -35,18 +47,12 @@ def main():
     script = PROJECT_ROOT / COMMANDS[command]
 
     if not script.exists():
-        raise FileNotFoundError(
-            f"Script not found: {script}"
-        )
+        raise FileNotFoundError(f"Script not found: {script}")
 
     env = os.environ.copy()
     src_path = str(PROJECT_ROOT / "src")
-
     env["PYTHONPATH"] = os.pathsep.join(
-        filter(
-            None,
-            [src_path, env.get("PYTHONPATH")],
-        )
+        filter(None, [src_path, env.get("PYTHONPATH")])
     )
 
     subprocess.run(
@@ -55,6 +61,7 @@ def main():
         env=env,
         check=True,
     )
+
 
 if __name__ == "__main__":
     main()

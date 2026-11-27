@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SignScript — Live ASL letters</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="top">
+        <div class="brand">
+          <p class="brand-name">SignScript</p>
+          <p class="brand-tag">Live ASL letters · COMP 4102</p>
+        </div>
+      </header>
+
+      <main class="stage">
+        <section class="camera-panel" aria-label="Webcam">
+          <div class="camera-frame">
+            <video id="webcam" playsinline muted></video>
+            <canvas id="overlay"></canvas>
+            <p id="camera-status" class="camera-status">Starting camera…</p>
+          </div>
+          <p class="hint">
+            Keep your hand close, centered, and well lit.
+          </p>
+        </section>
+
+        <aside class="readout" aria-live="polite">
+          <p class="readout-label">Prediction</p>
+          <p id="letter" class="letter">—</p>
+          <div class="meter" aria-hidden="true">
+            <div id="conf-bar" class="meter-fill"></div>
+          </div>
+          <p id="confidence" class="confidence">Confidence 0%</p>
+          <p id="hand" class="hand">Hand —</p>
+          <p id="status" class="status">Waiting for hand…</p>
+          <button id="start-btn" type="button" class="btn">
+            Enable camera
+          </button>
+        </aside>
+      </main>
+
+      <section class="alphabet" aria-label="ASL fingerspelling alphabet">
+        <div class="alphabet-head">
+          <h2>ASL alphabet</h2>
+          <p class="note">
+            Reference handshapes. <span class="asl-legend">J</span> and
+            <span class="asl-legend">Z</span> need motion, everything else is held still.
+          </p>
+        </div>
+        <div id="alphabet-grid" class="alphabet-grid"></div>
+      </section>
+    </div>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
