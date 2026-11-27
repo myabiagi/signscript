@@ -54,7 +54,6 @@ def run_kfold_eval(
     labels = data["labels"]
     class_names = data["class_names"]
 
-    # Build features once per method; folds index into the same clip order
     features_by_method = {}
     for method in METHODS:
         X, keep = build_feature_matrix(sequences, method, num_samples)

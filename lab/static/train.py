@@ -12,6 +12,7 @@ from sklearn.model_selection import train_test_split
 from features import enhance_features
 from data import (
     ASL_HG_PATH,
+    ASL_DYNAMIC_MID_PATH,
     LETTERS,
     load_features,
     split_data,
@@ -26,6 +27,7 @@ MODEL_DIR = Path("models")
 EXPERIMENT_DIR = MODEL_DIR / "experiments"
 SUPPLIED_MODEL = MODEL_DIR / "static_classifier.joblib"
 RETRAINED_MODEL = MODEL_DIR / "static_classifier_retrained.joblib"
+ASLDYN_MID_MODEL = MODEL_DIR / "static_classifier_asldyn_mid.joblib"
 
 
 def _fit_final_rf(X_train, y_train):
@@ -103,6 +105,82 @@ def run_training(mode, install=False):
     return output
 
 
+def run_final_asldyn(domain_weight=2, install=False):
+    """
+    Side model: ASL-HG + Pugeault (`final` recipe) + ASL_Dynamic mid-frames.
+
+    Writes models/static_classifier_asldyn_mid.joblib and never replaces the
+    live classifier unless --install is passed.
+    """
+    if not ASL_HG_PATH.exists():
+        raise FileNotFoundError(
+            f"Missing {ASL_HG_PATH}. Extract ASL_Raw_Images into "
+            "data/static/asl_hg/ then run: python dev.py prepare-static asl-hg"
+        )
+    if not ASL_DYNAMIC_MID_PATH.exists():
+        raise FileNotFoundError(
+            f"Missing {ASL_DYNAMIC_MID_PATH}. Run: "
+            "python dev.py prepare-static asl-dynamic-mid"
+        )
+
+    X, y, paths, participant_ids = load_features(ASL_HG_PATH)
+    if X.shape[1] != 63:
+        raise ValueError("Expected 63 ASL-HG features.")
+    X = enhance_features(X)
+    train, val, test = split_data(X, y, paths, participant_ids)
+    X_train, y_train, _, _ = train
+    X_val, y_val, _, _ = val
+    print(
+        f"ASL-HG train={len(y_train)} val={len(y_val)} "
+        f"held-out test={len(test[1])}"
+    )
+
+    try:
+        X_train, y_train = combine_pugeault_training(
+            X_train, y_train, X_val
+        )
+        print(f"After Pugeault: train={len(y_train)}")
+    except FileNotFoundError as exc:
+        print(f"Pugeault skipped: {exc}")
+
+    X_mid, y_mid, _, ids_mid = load_features(ASL_DYNAMIC_MID_PATH)
+    if X_mid.shape[1] != 63:
+        raise ValueError(
+            f"{ASL_DYNAMIC_MID_PATH} must be 63-D, got {X_mid.shape[1]}"
+        )
+    X_mid = enhance_features(X_mid)
+    X_mid_w, y_mid_w = repeat_rows(X_mid, y_mid, domain_weight)
+    print(
+        f"Adding ASL_Dynamic mid-frames: {len(y_mid)} "
+        f"(x{domain_weight} → {len(y_mid_w)}), source={ids_mid[0]}"
+    )
+
+    X_all = np.concatenate((X_train, X_mid_w), axis=0)
+    y_all = np.concatenate((y_train, y_mid_w), axis=0)
+    missing = set(LETTERS) - set(np.unique(y_all))
+    if missing:
+        print(f"Warning: training missing letters {sorted(missing)}")
+
+    print(f"Fitting RF on {len(y_all)} rows, dim={X_all.shape[1]}")
+    model = _fit_final_rf(X_all, y_all)
+
+    ASLDYN_MID_MODEL.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, ASLDYN_MID_MODEL)
+    print(f"\nSaved side model: {ASLDYN_MID_MODEL}")
+    print_validation(model, X_val, y_val)
+    print(f"Live model unchanged: {SUPPLIED_MODEL}")
+
+    if install:
+        shutil.copy2(ASLDYN_MID_MODEL, SUPPLIED_MODEL)
+        print(f"Installed for live use → {SUPPLIED_MODEL}")
+    else:
+        print(
+            "\nTo try the side model: "
+            f"cp {ASLDYN_MID_MODEL} {SUPPLIED_MODEL}"
+        )
+    return ASLDYN_MID_MODEL
+
+
 def run_webcam_mix(webcam_weight=5, install=False):
     """
     Retrain RF on ASL-HG train (if present) + Graudt + local webcam.
@@ -136,7 +214,6 @@ def run_webcam_mix(webcam_weight=5, install=False):
             X_train_p, y_train_p = combine_pugeault_training(
                 X_train, y_train, X_val
             )
-            # replace base train with pugeault-combined
             parts_X[0] = X_train_p
             parts_y[0] = y_train_p
             print(f"After Pugeault: train={len(y_train_p)}")
@@ -159,9 +236,6 @@ def run_webcam_mix(webcam_weight=5, install=False):
 
     for X_d, y_d, _, ids in domain:
         X_enh = enhance_features(X_d)
-
-        # If we have no ASL-HG val set, hold out 15% of this source first
-        # (before oversampling) so repeats cannot leak into validation.
         if X_val is None:
             X_tr, X_va, y_tr, y_va = train_test_split(
                 X_enh,
@@ -177,8 +251,6 @@ def run_webcam_mix(webcam_weight=5, install=False):
                 f"train={len(y_d)} val={len(y_val)}"
             )
 
-        # Local webcam gets the full weight; Graudt gets half that
-        # (still webcam-ish, but not your exact camera).
         is_local = np.all(ids == "WEBCAM")
         weight = webcam_weight if is_local else max(1, webcam_weight // 2)
         X_w, y_w = repeat_rows(X_enh, y_d, weight)
@@ -230,6 +302,7 @@ if __name__ == "__main__":
             "geometric-rf",
             "final",
             "webcam-mix",
+            "final-asldyn",
         ),
     )
     parser.add_argument(
@@ -237,6 +310,12 @@ if __name__ == "__main__":
         type=int,
         default=5,
         help="Repeat factor for local webcam samples (default 5).",
+    )
+    parser.add_argument(
+        "--domain-weight",
+        type=int,
+        default=2,
+        help="Repeat factor for ASL_Dynamic mid-frames in final-asldyn.",
     )
     parser.add_argument(
         "--install",
@@ -248,6 +327,11 @@ if __name__ == "__main__":
     if args.mode == "webcam-mix":
         run_webcam_mix(
             webcam_weight=args.webcam_weight,
+            install=args.install,
+        )
+    elif args.mode == "final-asldyn":
+        run_final_asldyn(
+            domain_weight=args.domain_weight,
             install=args.install,
         )
     else:

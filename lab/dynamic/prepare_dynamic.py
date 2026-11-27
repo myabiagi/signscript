@@ -18,14 +18,12 @@ import numpy as np
 from features import landmarks_array_from_hand
 from hand_tracking import detect_hands, initialize_hand_detector
 
-# Dynamic Experiment B vocabulary
 DYNAMIC_CLASSES = ("J", "Z", "I", "D")
 
 DATASET_PATH = Path("data/ASL_dynamic")
 MODEL_PATH = Path("models/hand_landmarker.task")
 FEATURES_PATH = Path("data/processed/dynamic_raw_sequences.npz")
 
-# Require at least this many successful hand detections per clip
 MIN_VALID_FRAMES = 5
 
 def list_clip_frames(clip_path):
@@ -94,7 +92,6 @@ def extract_clip_sequence(clip_path, detector):
     num_valid = int(np.isfinite(sequence).all(axis=(1, 2)).sum())
 
     if handedness_votes:
-        # Majority vote for metadata only (mirroring already applied)
         values, counts = np.unique(handedness_votes, return_counts=True)
         handedness_label = str(values[np.argmax(counts)])
     else:
@@ -194,7 +191,6 @@ def save_dynamic_sequences(feature_data, output_path=FEATURES_PATH):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Object array preserves each clip's native temporal length
     sequence_array = np.empty(len(feature_data["sequences"]), dtype=object)
 
     for index, sequence in enumerate(feature_data["sequences"]):

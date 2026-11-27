@@ -8,6 +8,7 @@ ASL_HG_PATH = Path("data/processed/static_asl_hg.npz")
 PUGEAULT_PATH = Path("data/processed/static_pugeault.npz")
 GRAUDT_PATH = Path("data/processed/static_graudt.npz")
 WEBCAM_PATH = Path("data/processed/static_webcam.npz")
+ASL_DYNAMIC_MID_PATH = Path("data/processed/static_asl_dynamic_mid.npz")
 
 LETTERS = tuple("ABCDEFGHIKLMNOPQRSTUVWXY")
 
