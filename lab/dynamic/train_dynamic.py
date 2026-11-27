@@ -27,10 +27,8 @@ FEATURES_PATH = Path("data/processed/dynamic_raw_sequences.npz")
 MODELS_DIR = Path("models")
 RESULTS_DIR = Path("results/dynamic")
 
-# Fixed temporal length after resampling (shared across all methods)
 NUM_SAMPLES = 30
 
-# Random Forest hyperparameters (fixed so methods stay comparable)
 N_ESTIMATORS = 200
 MAX_DEPTH = None
 MIN_SAMPLES_LEAF = 1
@@ -301,7 +299,6 @@ def train_all_methods(
         kept_labels = labels[keep]
         kept_indices = np.where(keep)[0]
 
-        # Map original split indices onto kept feature rows
         index_map = {int(old): new for new, old in enumerate(kept_indices)}
         train_rows = [index_map[i] for i in train_idx if i in index_map]
         test_rows = [index_map[i] for i in test_idx if i in index_map]
@@ -365,8 +362,6 @@ def train_all_methods(
             }
         )
 
-        # Binary J-vs-Z model for live: motion gate already implies a stroke,
-        # so we should not split probability mass with static I/D.
         jz_mask_train = np.isin(y_train, POSITIVE_LABELS)
         jz_mask_test = np.isin(y_test, POSITIVE_LABELS)
         if jz_mask_train.sum() >= 4 and jz_mask_test.sum() >= 1:

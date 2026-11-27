@@ -144,11 +144,6 @@ function handSpeed(prev, curr) {
   return total / indices.length;
 }
 
-function tipTrailFromSelfieFrames(frames) {
-  const tip = cfg.indexTip ?? 8;
-  return frames.map((frame) => [frame[tip][0], frame[tip][1]]);
-}
-
 function apiErrorMessage(err, fallback) {
   const detail = err?.detail;
   if (typeof detail === "string") return detail;
@@ -199,32 +194,6 @@ function clearOverlay() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-/** Draw the index-tip path while a stroke is recorded. */
-function drawStrokeTrail(points) {
-  if (!points || points.length < 2) return;
-
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-
-  for (let i = 1; i < points.length; i++) {
-    const t = i / (points.length - 1);
-    ctx.strokeStyle = "#00c8dc";
-    ctx.globalAlpha = 0.25 + 0.75 * t;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(points[i - 1][0] * canvas.width, points[i - 1][1] * canvas.height);
-    ctx.lineTo(points[i][0] * canvas.width, points[i][1] * canvas.height);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  const last = points[points.length - 1];
-  ctx.fillStyle = "#00c8dc";
-  ctx.beginPath();
-  ctx.arc(last[0] * canvas.width, last[1] * canvas.height, 5, 0, Math.PI * 2);
-  ctx.fill();
-}
-
 function drawHand(landmarks) {
   ctx.strokeStyle = "#e08a3c";
   ctx.fillStyle = "#f9e867";
@@ -249,9 +218,6 @@ function drawHand(landmarks) {
 
 function drawOverlay(landmarks) {
   clearOverlay();
-  if (moving && moveFrames.length >= 2) {
-    drawStrokeTrail(tipTrailFromSelfieFrames(moveFrames));
-  }
   if (landmarks) drawHand(landmarks);
 }
 

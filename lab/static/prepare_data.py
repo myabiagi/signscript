@@ -14,6 +14,7 @@ from datasets import (
     collect_pugeault,
     collect_graudt,
     collect_webcam_static,
+    collect_asl_dynamic_mid,
 )
 from data import LETTERS
 from hand_tracking import initialize_hand_detector, detect_hands
@@ -240,6 +241,13 @@ def prepare(dataset):
             OUTPUT_DIR / "static_webcam.npz",
             already_63=True,
         )
+    elif dataset == "asl-dynamic-mid":
+        prepare_images(
+            dataset,
+            collect_asl_dynamic_mid(),
+            OUTPUT_DIR / "static_asl_dynamic_mid.npz",
+            use_geometric_features=False,
+        )
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 
@@ -248,7 +256,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "dataset",
-        choices=("asl-hg", "pugeault", "graudt", "webcam"),
+        choices=(
+            "asl-hg",
+            "pugeault",
+            "graudt",
+            "webcam",
+            "asl-dynamic-mid",
+        ),
     )
 
     args = parser.parse_args()

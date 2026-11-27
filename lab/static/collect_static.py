@@ -77,8 +77,6 @@ def run_collector(camera_index=0):
             ok, frame = cap.read()
             if not ok:
                 break
-
-            # Mirror for selfie view; detect on the flipped frame.
             frame = cv2.flip(frame, 1)
             timestamp_ms = frame_id
             frame_id += 1
